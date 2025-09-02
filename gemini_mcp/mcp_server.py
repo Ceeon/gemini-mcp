@@ -32,21 +32,24 @@ OUTPUT_DIR = os.getenv("OUTPUT_DIR", "./outputs")
 
 @mcp.tool()
 async def send_images_to_gemini(
-    images: Union[str, List[str]],
-    prompt: str
+    prompt: str,
+    images: Union[str, List[str], None] = None
 ) -> str:
     """
-    向Gemini AI发送图片进行处理（核心功能）
+    使用Gemini AI生成图片或处理图片（支持纯文字生图）
     
-    这是原始API的核心功能：发送图片+提示词，获取AI响应
+    核心功能：纯文字生成图片 或 发送图片+提示词获取AI响应
     
     Args:
-        images: 图片输入，支持：
+        prompt: 提示词，告诉AI你想做什么
+               - 纯文字生图: "生成一只可爱的兔子"
+               - 图片分析: "描述这张图片的内容"
+               - 图片转换: "将图片转为卡通风格"
+        images: 图片输入（可选），支持：
+               - None/不提供: 纯文字生成图片模式
                - 单张图片路径: "/path/to/image.jpg"
                - 多张图片列表: ["/path/to/img1.jpg", "/path/to/img2.png"]
                - 支持本地文件、URL、base64格式
-        prompt: 提示词，告诉AI你想做什么
-               例如："描述这张图片" 或 "生成卡通风格版本"
     
     Returns:
         AI响应内容，包含：
@@ -55,30 +58,35 @@ async def send_images_to_gemini(
         - 保存的文件路径
     
     功能特性（自动处理）：
+        ✅ 支持纯文字生成图片（无需提供图片）
         ✅ 自动将本地文件转换为base64
-        ✅ 自动下载URL图片
+        ✅ 自动下载URL图片（包括API生成的图片）
         ✅ 自动保存生成的图片到本地
         ✅ 自动重试（配额超限最多10次）
         ✅ 使用流式响应获取完整数据
         ✅ 保存调试信息到输出目录
     
     使用示例：
+        # 纯文字生成图片（新功能）
+        prompt = "生成一只可爱的白色兔子，有大眼睛，正在吃胡萝卜"
+        images = None  # 或不提供
+        
         # 分析单张图片
-        images = "/Users/me/photo.jpg"
         prompt = "描述这张图片的内容"
+        images = "/Users/me/photo.jpg"
         
         # 生成图片（多张参考图）
-        images = ["photo1.jpg", "photo2.jpg"]
         prompt = "基于这两张图片生成一个融合版本"
+        images = ["photo1.jpg", "photo2.jpg"]
         
         # 使用URL
-        images = "https://example.com/image.png"
         prompt = "将这张图片转换为油画风格"
+        images = "https://example.com/image.png"
     """
     try:
         # 调用原始API功能
         result = await process_image_async(
-            image_input=images,
+            image_input=images,  # 可以是None（纯文字生图）
             prompt=prompt,
             api_key=API_KEY,
             base_url=BASE_URL,
