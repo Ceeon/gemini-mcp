@@ -84,21 +84,39 @@ async def send_images_to_gemini(
         images = "https://example.com/image.png"
     """
     try:
+        # 添加调试日志
+        import json
+        debug_info = {
+            "原始images参数": str(images),
+            "images类型": str(type(images)),
+            "images是否为None": images is None,
+            "images是否为空列表": isinstance(images, list) and len(images) == 0,
+            "images内容": images if images else "空"
+        }
+        
         # 处理images参数 - 如果是空数组、空字符串或包含空字符串的数组，都视为纯文字生图
         processed_images = None
         if images is not None:
             # 如果是空数组
             if isinstance(images, list) and len(images) == 0:
                 processed_images = None
+                debug_info["处理结果"] = "空列表->None"
             # 如果是包含空字符串的数组
             elif isinstance(images, list) and all(not img or img == "" for img in images):
                 processed_images = None
+                debug_info["处理结果"] = "空字符串列表->None"
             # 如果是空字符串
             elif isinstance(images, str) and images == "":
                 processed_images = None
+                debug_info["处理结果"] = "空字符串->None"
             # 否则使用原始值
             else:
                 processed_images = images
+                debug_info["处理结果"] = "保持原值"
+        else:
+            debug_info["处理结果"] = "原本就是None"
+        
+        debug_info["最终processed_images"] = str(processed_images)
         
         # 调用原始API功能
         result = await process_image_async(
@@ -110,6 +128,12 @@ async def send_images_to_gemini(
             output_dir=OUTPUT_DIR,
             save_output=True  # 始终保存输出
         )
+        
+        # 如果失败，添加调试信息到错误消息
+        if not result.get("success"):
+            debug_str = json.dumps(debug_info, ensure_ascii=False, indent=2)
+            error_msg = result.get("error", "未知错误")
+            return f"❌ 处理失败: {error_msg}\n\n📋 调试信息:\n{debug_str}"
         
         if result["success"]:
             # 构建响应

@@ -295,22 +295,33 @@ class GeminiImageProcessor:
             包含处理结果的字典
         """
         try:
+            # 添加调试日志
+            print(f"[DEBUG] process_images 接收到的参数:")
+            print(f"  - images: {images}")
+            print(f"  - images type: {type(images)}")
+            print(f"  - images == []: {images == []}")
+            print(f"  - images is None: {images is None}")
+            
             # 构建消息内容
             content_list = []
             
             # 处理图片输入
             if images is not None and images != [] and images != "":
+                print(f"[DEBUG] 进入图片处理分支")
                 # 确保images是列表
                 if isinstance(images, str):
                     images = [images]
                 
                 # 过滤掉空字符串
                 valid_images = [img for img in images if img and img != ""]
+                print(f"[DEBUG] 过滤后的valid_images: {valid_images}")
                 
                 # 如果没有有效的图片，视为纯文字生图
                 if not valid_images:
+                    print(f"[DEBUG] 没有有效图片，切换到纯文字模式")
                     content_list = prompt  # 纯文字模式
                 else:
+                    print(f"[DEBUG] 有 {len(valid_images)} 张有效图片")
                     # 准备所有图片数据
                     image_contents = []
                     for i, image in enumerate(valid_images):
@@ -336,6 +347,7 @@ class GeminiImageProcessor:
                         content_list.extend(image_contents)
             else:
                 # 纯文字模式 - 只有提示词
+                print(f"[DEBUG] 直接进入纯文字模式 (images为None或空)")
                 content_list = prompt  # 直接使用字符串作为content
             
             messages = [
