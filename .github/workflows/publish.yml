@@ -8,7 +8,6 @@ on:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
-    environment: pypi  # 使用 pypi environment
     permissions:
       id-token: write  # 需要这个权限用于 OIDC
       contents: read
