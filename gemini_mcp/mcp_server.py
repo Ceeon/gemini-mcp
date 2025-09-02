@@ -84,9 +84,25 @@ async def send_images_to_gemini(
         images = "https://example.com/image.png"
     """
     try:
+        # 处理images参数 - 如果是空数组、空字符串或包含空字符串的数组，都视为纯文字生图
+        processed_images = None
+        if images is not None:
+            # 如果是空数组
+            if isinstance(images, list) and len(images) == 0:
+                processed_images = None
+            # 如果是包含空字符串的数组
+            elif isinstance(images, list) and all(not img or img == "" for img in images):
+                processed_images = None
+            # 如果是空字符串
+            elif isinstance(images, str) and images == "":
+                processed_images = None
+            # 否则使用原始值
+            else:
+                processed_images = images
+        
         # 调用原始API功能
         result = await process_image_async(
-            image_input=images,  # 可以是None（纯文字生图）
+            image_input=processed_images,  # 自动处理为None（纯文字生图）
             prompt=prompt,
             api_key=API_KEY,
             base_url=BASE_URL,
