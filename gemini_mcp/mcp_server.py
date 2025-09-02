@@ -97,18 +97,18 @@ async def send_images_to_gemini(
         # 处理images参数 - 如果是空数组、空字符串或包含空字符串的数组，都视为纯文字生图
         processed_images = None
         if images is not None:
+            # 如果是字符串"null"、"None"、"undefined"等
+            if isinstance(images, str) and images.lower() in ["null", "none", "undefined", ""]:
+                processed_images = None
+                debug_info["处理结果"] = f"字符串'{images}'->None"
             # 如果是空数组
-            if isinstance(images, list) and len(images) == 0:
+            elif isinstance(images, list) and len(images) == 0:
                 processed_images = None
                 debug_info["处理结果"] = "空列表->None"
             # 如果是包含空字符串的数组
-            elif isinstance(images, list) and all(not img or img == "" for img in images):
+            elif isinstance(images, list) and all(not img or img == "" or img.lower() in ["null", "none", "undefined"] for img in images):
                 processed_images = None
                 debug_info["处理结果"] = "空字符串列表->None"
-            # 如果是空字符串
-            elif isinstance(images, str) and images == "":
-                processed_images = None
-                debug_info["处理结果"] = "空字符串->None"
             # 否则使用原始值
             else:
                 processed_images = images

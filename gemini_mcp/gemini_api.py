@@ -306,6 +306,11 @@ class GeminiImageProcessor:
             content_list = []
             
             # 处理图片输入
+            # 检查是否为字符串形式的null/none/undefined
+            if isinstance(images, str) and images.lower() in ["null", "none", "undefined"]:
+                print(f"[DEBUG] 检测到字符串'{images}'，视为纯文字模式")
+                images = None
+            
             if images is not None and images != [] and images != "":
                 print(f"[DEBUG] 进入图片处理分支")
                 # 确保images是列表
