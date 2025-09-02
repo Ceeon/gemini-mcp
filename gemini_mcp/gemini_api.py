@@ -298,38 +298,42 @@ class GeminiImageProcessor:
             # 构建消息内容
             content_list = []
             
-            # 处理图片输入（如果有）
-            if images is not None:
+            # 处理图片输入
+            if images is not None and images != [] and images != "":
                 # 确保images是列表
                 if isinstance(images, str):
                     images = [images]
                 
-                # 准备所有图片数据
-                image_contents = []
-                for i, image in enumerate(images):
-                    try:
-                        image_data = self.prepare_image_data(image)
-                        image_contents.append({
-                            "type": "image_url",
-                            "image_url": {
-                                "url": image_data,
-                            },
-                        })
-                    except Exception as e:
-                        print(f"处理第 {i+1} 张图片时出错: {e}")
-                        continue
+                # 过滤掉空字符串
+                valid_images = [img for img in images if img and img != ""]
                 
-                if not image_contents:
-                    return {
-                        "success": False,
-                        "error": "没有成功处理任何图片",
-                        "text": None,
-                        "images": []
-                    }
-                
-                # 添加文本和图片到内容列表
-                content_list.append({"type": "text", "text": prompt})
-                content_list.extend(image_contents)
+                # 如果没有有效的图片，视为纯文字生图
+                if not valid_images:
+                    content_list = prompt  # 纯文字模式
+                else:
+                    # 准备所有图片数据
+                    image_contents = []
+                    for i, image in enumerate(valid_images):
+                        try:
+                            image_data = self.prepare_image_data(image)
+                            image_contents.append({
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": image_data,
+                                },
+                            })
+                        except Exception as e:
+                            print(f"处理第 {i+1} 张图片时出错: {e}")
+                            continue
+                    
+                    if not image_contents:
+                        # 如果所有图片都处理失败，回退到纯文字模式
+                        print("所有图片处理失败，切换到纯文字生图模式")
+                        content_list = prompt
+                    else:
+                        # 添加文本和图片到内容列表
+                        content_list.append({"type": "text", "text": prompt})
+                        content_list.extend(image_contents)
             else:
                 # 纯文字模式 - 只有提示词
                 content_list = prompt  # 直接使用字符串作为content
