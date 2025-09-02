@@ -1,0 +1,73 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gemini-mcp"
+version = "0.1.0"
+description = "MCP server for Gemini AI image processing - 基于 Gemini 2.5 Flash 的图片处理 MCP 服务"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"},
+]
+keywords = ["mcp", "gemini", "ai", "image-processing", "llm", "claude"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "fastmcp>=0.1.0",
+    "httpx[socks]>=0.24.0",
+    "pillow>=10.0.0",
+    "python-dotenv>=1.0.0",
+    "socksio>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+gemini-mcp = "gemini_mcp.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/gemini-mcp"
+Documentation = "https://github.com/yourusername/gemini-mcp#readme"
+Repository = "https://github.com/yourusername/gemini-mcp"
+Issues = "https://github.com/yourusername/gemini-mcp/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["gemini_mcp"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py38"
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long
+]
+
+[tool.black]
+line-length = 120
+target-version = ["py38"]

@@ -1,0 +1,15 @@
+# PyPI 配置示例
+# 复制此文件到 ~/.pypirc 并填入你的 PyPI token
+
+[distutils]
+index-servers =
+    pypi
+    testpypi
+
+[pypi]
+username = __token__
+password = pypi-YOUR_TOKEN_HERE
+
+[testpypi]
+username = __token__
+password = pypi-YOUR_TEST_TOKEN_HERE
