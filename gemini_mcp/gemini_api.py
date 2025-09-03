@@ -238,8 +238,12 @@ class GeminiImageProcessor:
                     # 收集流式响应
                     full_content = ""
                     for chunk in completion:
-                        if chunk.choices[0].delta.content:
-                            full_content += chunk.choices[0].delta.content
+                        # 安全检查：确保choices存在且不为空
+                        if hasattr(chunk, 'choices') and chunk.choices and len(chunk.choices) > 0:
+                            if hasattr(chunk.choices[0], 'delta'):
+                                delta = chunk.choices[0].delta
+                                if hasattr(delta, 'content') and delta.content:
+                                    full_content += delta.content
                     
                     return {
                         "content": full_content,
