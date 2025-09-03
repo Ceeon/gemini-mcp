@@ -27,7 +27,6 @@ mcp = FastMCP("Gemini Image Processor")
 API_KEY = os.getenv("GEMINI_API_KEY")
 BASE_URL = os.getenv("API_BASE_URL", "https://api.tu-zi.com/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-image")
-OUTPUT_DIR = os.getenv("OUTPUT_DIR", "./outputs")
 
 
 @mcp.tool()
@@ -36,20 +35,21 @@ async def send_images_to_gemini(
     images: Union[str, List[str], None] = None
 ) -> str:
     """
-    使用Gemini AI生成图片或处理图片（支持纯文字生图）
+    使用Gemini AI生成图片（纯文字）或处理现有图片
     
-    核心功能：纯文字生成图片 或 发送图片+提示词获取AI响应
+    两种独立模式：
+    1. 纯文字生图模式 - 只需提供文字描述，无需任何图片
+    2. 图片处理模式 - 提供图片和提示词进行分析或转换
     
     Args:
-        prompt: 提示词，告诉AI你想做什么
-               - 纯文字生图: "生成一只可爱的兔子"
-               - 图片分析: "描述这张图片的内容"
-               - 图片转换: "将图片转为卡通风格"
-        images: 图片输入（可选），支持：
-               - None/不提供: 纯文字生成图片模式
-               - 单张图片路径: "/path/to/image.jpg"
-               - 多张图片列表: ["/path/to/img1.jpg", "/path/to/img2.png"]
-               - 支持本地文件、URL、base64格式
+        prompt: 必需。告诉AI你想做什么
+               纯文字生图示例: "生成一只可爱的兔子"
+               图片处理示例: "描述这张图片" (需配合images参数)
+        
+        images: 可选。不提供则为纯文字生图模式
+               支持格式: 文件路径、URL、base64
+               单张: "/path/to/image.jpg" 
+               多张: ["/img1.jpg", "/img2.png"]
     
     Returns:
         AI响应内容，包含：
@@ -61,10 +61,10 @@ async def send_images_to_gemini(
         ✅ 支持纯文字生成图片（无需提供图片）
         ✅ 自动将本地文件转换为base64
         ✅ 自动下载URL图片（包括API生成的图片）
-        ✅ 自动保存生成的图片到本地
+        ✅ 自动保存生成的图片到当前目录
         ✅ 自动重试（配额超限最多10次）
         ✅ 使用流式响应获取完整数据
-        ✅ 保存调试信息到输出目录
+        ✅ 文件名包含时间戳避免覆盖
     
     使用示例：
         # 纯文字生成图片（新功能）
@@ -125,7 +125,6 @@ async def send_images_to_gemini(
             api_key=API_KEY,
             base_url=BASE_URL,
             model_name=MODEL_NAME,
-            output_dir=OUTPUT_DIR,
             save_output=True  # 始终保存输出
         )
         
@@ -149,12 +148,6 @@ async def send_images_to_gemini(
                 for img_path in result["images"]:
                     response.append(f"  ✅ {img_path}")
             
-            # 输出目录信息
-            if result.get("output_dir"):
-                response.append(f"\n📂 所有文件保存在: {result['output_dir']}")
-                response.append("  - content.txt: 处理后的文本")
-                response.append("  - original_content.txt: 原始响应")
-                response.append("  - raw_api_response.json: API响应调试信息")
             
             return "\n".join(response)
         else:
@@ -173,12 +166,11 @@ if __name__ == "__main__":
         print("GEMINI_API_KEY=sk-your-api-key")
         print("API_BASE_URL=https://api.tu-zi.com/v1")
         print("MODEL_NAME=gemini-2.5-flash-image")
-        print("OUTPUT_DIR=./outputs")
     else:
         print("✅ Gemini MCP Server 已启动")
         print(f"📡 API: {BASE_URL}")
         print(f"🤖 模型: {MODEL_NAME}")
-        print(f"📁 输出: {OUTPUT_DIR}")
+        print(f"📁 输出: 当前目录")
     
     # 运行MCP服务器（stdio模式）
     mcp.run(transport="stdio")

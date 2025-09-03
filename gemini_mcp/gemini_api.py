@@ -26,8 +26,7 @@ class GeminiImageProcessor:
         max_retries: int = 10,
         retry_delay: float = 0,
         api_timeout: int = 120,
-        use_stream: bool = True,
-        output_dir: str = "./outputs"
+        use_stream: bool = True
     ):
         """初始化处理器"""
         self.api_key = api_key or os.getenv("GEMINI_API_KEY", "sk-**")
@@ -37,7 +36,6 @@ class GeminiImageProcessor:
         self.retry_delay = retry_delay
         self.api_timeout = api_timeout
         self.use_stream = use_stream
-        self.output_dir = output_dir
         
         # 初始化OpenAI客户端
         self.client = OpenAI(
@@ -75,14 +73,11 @@ class GeminiImageProcessor:
         encoded_data = base64.b64encode(image_bytes).decode("utf-8")
         return "data:image/png;base64," + encoded_data
     
-    def create_output_directory(self) -> str:
-        """创建输出目录"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = os.path.join(self.output_dir, f"output_{timestamp}")
-        os.makedirs(output_dir, exist_ok=True)
-        return output_dir
+    def get_timestamp(self) -> str:
+        """获取当前时间戳"""
+        return datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    def save_base64_image(self, base64_data: str, output_dir: str, image_index: int) -> Optional[str]:
+    def save_base64_image(self, base64_data: str, timestamp: str, image_index: int) -> Optional[str]:
         """保存base64图片到本地"""
         try:
             # 移除data:image/png;base64,前缀（如果存在）
@@ -92,9 +87,9 @@ class GeminiImageProcessor:
             # 解码base64数据
             image_data = base64.b64decode(base64_data)
             
-            # 保存图片
-            image_filename = f"image_{image_index}.png"
-            image_path = os.path.join(output_dir, image_filename)
+            # 保存图片到当前目录
+            image_filename = f"gemini_image_{timestamp}_{image_index}.png"
+            image_path = image_filename
             
             with open(image_path, "wb") as img_file:
                 img_file.write(image_data)
@@ -104,26 +99,45 @@ class GeminiImageProcessor:
             print(f"保存base64图片时出错: {e}")
             return None
     
-    def download_image_from_url(self, url: str, output_dir: str, image_index: int) -> Optional[str]:
+    def download_image_from_url(self, url: str, timestamp: str, image_index: int) -> Optional[str]:
         """从URL下载图片到本地"""
         try:
-            response = requests.get(url, stream=True)
+            print(f"正在尝试下载: {url}")
+            
+            # 设置请求头，模拟浏览器
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8'
+            }
+            
+            response = requests.get(url, stream=True, headers=headers, timeout=30)
             response.raise_for_status()
             
             # 获取文件扩展名
             content_type = response.headers.get('content-type', '')
+            print(f"Content-Type: {content_type}")
+            
             if 'png' in content_type.lower():
                 ext = 'png'
             elif 'jpg' in content_type.lower() or 'jpeg' in content_type.lower():
                 ext = 'jpg'
             elif 'gif' in content_type.lower():
                 ext = 'gif'
+            elif 'webp' in content_type.lower():
+                ext = 'webp'
             else:
-                ext = 'png'  # 默认扩展名
+                # 尝试从URL中提取扩展名
+                import os as os_module
+                url_path = url.split('?')[0]  # 移除查询参数
+                _, url_ext = os_module.path.splitext(url_path)
+                if url_ext and url_ext[1:] in ['png', 'jpg', 'jpeg', 'gif', 'webp']:
+                    ext = url_ext[1:]
+                else:
+                    ext = 'png'  # 默认扩展名
             
-            # 保存图片
-            image_filename = f"image_url_{image_index}.{ext}"
-            image_path = os.path.join(output_dir, image_filename)
+            # 保存图片到当前目录
+            image_filename = f"gemini_url_{timestamp}_{image_index}.{ext}"
+            image_path = image_filename
             
             with open(image_path, "wb") as img_file:
                 for chunk in response.iter_content(chunk_size=8192):
@@ -134,7 +148,7 @@ class GeminiImageProcessor:
             print(f"下载URL图片时出错: {e}")
             return None
     
-    def save_mixed_content(self, content: str, output_dir: str) -> Dict[str, any]:
+    def save_mixed_content(self, content: str, timestamp: str) -> Dict[str, any]:
         """保存混合内容（文字、base64图片、URL图片）"""
         result = {
             "text": content,
@@ -147,12 +161,16 @@ class GeminiImageProcessor:
             base64_pattern = r'data:image/[^;]+;base64,([A-Za-z0-9+/=]+)'
             base64_matches = re.finditer(base64_pattern, content)
             
-            # 查找URL链接（包括API返回的生成图片URL）
-            # 匹配常见的图片URL格式，包括google.datas.systems的URL
+            # 查找URL链接 - 改进的正则表达式
+            # 匹配多种格式的图片URL
             url_patterns = [
-                r'https?://[^\s<>"]+\.(png|jpg|jpeg|gif)',  # 标准图片URL
-                r'https?://google\.datas\.systems/[^\s<>"]+',  # API生成的图片URL
-                r'!\[image\]\((https?://[^\)]+)\)'  # Markdown格式的图片
+                r'https?://[^\s<>"]+\.(png|jpg|jpeg|gif|webp|bmp)(\?[^\s<>"]*)?',  # 带扩展名（这个就能匹配大部分图片）
+                r'https?://[^\s<>"]*/image[^\s<>"]*',  # 包含/image的路径
+                r'https?://[^\s<>"]*(storage\.googleapis\.com|cdn\.openai\.com|oaidalleapi|dalle)[^\s<>"]*',  # 特定CDN
+                r'https?://[^\s<>"]*\.datas\.systems/[^\s<>"]*',  # 匹配所有.datas.systems域名
+                r'https?://[^\s<>"]*(s3\.ffire\.cc)[^\s<>"]*',  # s3.ffire.cc
+                r'https?://[^\s<>"]+/(v1|v2|api|cdn|static)/[^\s<>"]*',  # API格式URL（添加static）
+                r'!\[[^\]]*\]\((https?://[^\)]+)\)',  # Markdown格式的图片
             ]
             
             url_matches = []
@@ -160,11 +178,18 @@ class GeminiImageProcessor:
                 matches = re.finditer(pattern, content, re.IGNORECASE)
                 for match in matches:
                     # 提取URL（处理Markdown格式）
-                    if '![image]' in match.group(0):
-                        url = match.group(1)
+                    if '![' in match.group(0) and '](' in match.group(0):
+                        # Markdown格式，提取括号内的URL
+                        url = match.group(1) if match.lastindex else match.group(0)
                     else:
                         url = match.group(0)
                     url_matches.append(url)
+            
+            # 添加调试信息
+            if url_matches:
+                print(f"发现 {len(url_matches)} 个URL:")
+                for url in set(url_matches):
+                    print(f"  - {url}")
             
             # 保存文字内容到文件
             text_content = content
@@ -176,11 +201,9 @@ class GeminiImageProcessor:
                 base64_data = match.group(1)
                 
                 # 保存base64图片
-                saved_path = self.save_base64_image(base64_data, output_dir, image_index)
+                saved_path = self.save_base64_image(base64_data, timestamp, image_index)
                 if saved_path:
                     result["images"].append(saved_path)
-                    # 在文本中替换base64数据为文件路径
-                    text_content = text_content.replace(full_match, f"[保存的图片: {saved_path}]")
                     image_index += 1
             
             # 处理URL图片（去重）
@@ -188,23 +211,14 @@ class GeminiImageProcessor:
             for url in url_matches:
                 if url not in processed_urls:
                     processed_urls.add(url)
+                    print(f"处理图片URL: {url}")
                     
                     # 下载URL图片
-                    saved_path = self.download_image_from_url(url, output_dir, image_index)
+                    saved_path = self.download_image_from_url(url, timestamp, image_index)
                     if saved_path:
                         result["images"].append(saved_path)
-                        # 在文本中替换URL为文件路径
-                        text_content = text_content.replace(url, f"[下载的图片: {saved_path}]")
+                        print(f"图片已保存: {saved_path}")
                         image_index += 1
-            
-            # 保存处理后的文字内容
-            text_filename = os.path.join(output_dir, "content.txt")
-            with open(text_filename, "w", encoding="utf-8") as text_file:
-                text_file.write(text_content)
-            result["text_file"] = text_filename
-            
-            # 更新处理后的文本
-            result["text"] = text_content
             
         except Exception as e:
             print(f"保存混合内容时出错: {e}")
@@ -382,23 +396,27 @@ class GeminiImageProcessor:
             
             # 保存输出（如果需要）
             if save_output:
-                output_dir = self.create_output_directory()
-                save_result = self.save_mixed_content(response_content, output_dir)
+                timestamp = self.get_timestamp()
+                print(f"[DEBUG] 准备保存输出，时间戳: {timestamp}")
+                print(f"[DEBUG] 响应内容长度: {len(response_content)}")
+                print(f"[DEBUG] 响应内容预览: {response_content[:200]}...")
+                
+                save_result = self.save_mixed_content(response_content, timestamp)
+                
+                print(f"[DEBUG] 保存结果: {len(save_result['images'])} 张图片")
                 
                 return {
                     "success": True,
                     "error": None,
                     "text": save_result["text"],
-                    "images": save_result["images"],
-                    "output_dir": output_dir
+                    "images": save_result["images"]
                 }
             else:
                 return {
                     "success": True,
                     "error": None,
                     "text": response_content,
-                    "images": [],
-                    "output_dir": None
+                    "images": []
                 }
                 
         except Exception as e:
@@ -419,6 +437,8 @@ async def process_image_async(
     **kwargs
 ) -> Dict:
     """异步处理图片或纯文字生图"""
+    # 过滤掉 output_dir 参数（如果存在）
+    kwargs.pop('output_dir', None)
     processor = GeminiImageProcessor(api_key=api_key, **kwargs)
     
     # 在线程池中运行同步函数
@@ -443,5 +463,7 @@ def process_image(
     **kwargs
 ) -> Dict:
     """同步处理图片（向后兼容）"""
+    # 过滤掉 output_dir 参数（如果存在）
+    kwargs.pop('output_dir', None)
     processor = GeminiImageProcessor(api_key=api_key, **kwargs)
     return processor.process_images(image_input, prompt, save_output)

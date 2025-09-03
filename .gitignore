@@ -39,3 +39,12 @@ htmlcov/
 
 # MCP
 .mcp-cache/
+
+# Config with API keys
+claude_desktop_config.json
+
+# Generated images
+gemini_*.png
+gemini_*.jpg
+gemini_*.gif
+gemini_*.webp
