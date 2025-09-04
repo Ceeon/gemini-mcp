@@ -39,9 +39,11 @@ class GeminiImageProcessor:
         self.api_timeout = api_timeout
         self.use_stream = use_stream
         
-        # 确保输出目录存在
-        if self.output_dir and self.output_dir != ".":
+        # 确保输出目录存在（转换为绝对路径）
+        if self.output_dir:
+            self.output_dir = os.path.abspath(os.path.expanduser(self.output_dir))
             os.makedirs(self.output_dir, exist_ok=True)
+            print(f"输出目录: {self.output_dir}")
         
         # 初始化OpenAI客户端
         self.client = OpenAI(
@@ -141,8 +143,8 @@ class GeminiImageProcessor:
                 else:
                     ext = 'png'  # 默认扩展名
             
-            # 保存图片到指定目录
-            image_filename = f"gemini_url_{timestamp}_{image_index}.{ext}"
+            # 保存图片到指定目录，使用更清晰的文件名
+            image_filename = f"gemini_{timestamp}_{image_index}.{ext}"
             image_path = os.path.join(self.output_dir, image_filename)
             
             with open(image_path, "wb") as img_file:
