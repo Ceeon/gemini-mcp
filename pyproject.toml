@@ -30,6 +30,7 @@ classifiers = [
 dependencies = [
     "fastmcp>=0.1.0",
     "httpx[socks]>=0.24.0",
+    "openai>=1.0.0",
     "pillow>=10.0.0",
     "python-dotenv>=1.0.0",
     "socksio>=1.0.0",
