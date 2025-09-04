@@ -8,6 +8,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Union, List
+from datetime import datetime
 from fastmcp import FastMCP
 from dotenv import load_dotenv
 
@@ -27,6 +28,7 @@ mcp = FastMCP("Gemini Image Processor")
 API_KEY = os.getenv("GEMINI_API_KEY")
 BASE_URL = os.getenv("API_BASE_URL", "https://api.tu-zi.com/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-image")
+OUTPUT_DIR = os.getenv("GEMINI_MCP_OUTPUT_DIR", ".")  # 输出目录，默认当前目录
 
 
 @mcp.tool()
@@ -125,6 +127,7 @@ async def send_images_to_gemini(
             api_key=API_KEY,
             base_url=BASE_URL,
             model_name=MODEL_NAME,
+            output_dir=OUTPUT_DIR,
             save_output=True  # 始终保存输出
         )
         
@@ -141,12 +144,25 @@ async def send_images_to_gemini(
             # 添加文本响应
             response.append(result["text"])
             
-            # 如果有生成的图片
+            # 如果有生成/下载的图片
             if result.get("images"):
                 response.append("\n" + "="*50)
-                response.append("📸 生成/提取的图片已保存：")
-                for img_path in result["images"]:
-                    response.append(f"  ✅ {img_path}")
+                response.append("📸 生成/提取的图片已保存")
+                
+                # 如果设置了输出目录，显示图片保存位置
+                if OUTPUT_DIR and OUTPUT_DIR != ".":
+                    response.append(f"📁 图片保存在: {os.path.abspath(OUTPUT_DIR)}")
+                    for img_path in result["images"]:
+                        filename = os.path.basename(img_path)
+                        response.append(f"  ✅ {filename}")
+                else:
+                    # 如果保存在当前目录，提示移动文件
+                    response.append("\n🔄 [自动操作] 请将以下图片文件复制到用户当前工作目录：")
+                    for img_path in result["images"]:
+                        filename = os.path.basename(img_path)
+                        full_path = os.path.abspath(img_path)
+                        response.append(f"  • {filename}")
+                        response.append(f"    位于: {full_path}")
             
             
             return "\n".join(response)

@@ -23,6 +23,7 @@ class GeminiImageProcessor:
         api_key: str = None,
         base_url: str = None,
         model_name: str = None,
+        output_dir: str = None,
         max_retries: int = 10,
         retry_delay: float = 0,
         api_timeout: int = 120,
@@ -32,10 +33,15 @@ class GeminiImageProcessor:
         self.api_key = api_key or os.getenv("GEMINI_API_KEY", "sk-**")
         self.base_url = base_url or os.getenv("API_BASE_URL", "https://api.tu-zi.com/v1")
         self.model_name = model_name or os.getenv("MODEL_NAME", "gemini-2.5-flash-image")
+        self.output_dir = output_dir or os.getenv("GEMINI_MCP_OUTPUT_DIR", ".")  # 输出目录，默认当前目录
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.api_timeout = api_timeout
         self.use_stream = use_stream
+        
+        # 确保输出目录存在
+        if self.output_dir and self.output_dir != ".":
+            os.makedirs(self.output_dir, exist_ok=True)
         
         # 初始化OpenAI客户端
         self.client = OpenAI(
@@ -87,9 +93,9 @@ class GeminiImageProcessor:
             # 解码base64数据
             image_data = base64.b64decode(base64_data)
             
-            # 保存图片到当前目录
+            # 保存图片到指定目录
             image_filename = f"gemini_image_{timestamp}_{image_index}.png"
-            image_path = image_filename
+            image_path = os.path.join(self.output_dir, image_filename)
             
             with open(image_path, "wb") as img_file:
                 img_file.write(image_data)
@@ -135,9 +141,9 @@ class GeminiImageProcessor:
                 else:
                     ext = 'png'  # 默认扩展名
             
-            # 保存图片到当前目录
+            # 保存图片到指定目录
             image_filename = f"gemini_url_{timestamp}_{image_index}.{ext}"
-            image_path = image_filename
+            image_path = os.path.join(self.output_dir, image_filename)
             
             with open(image_path, "wb") as img_file:
                 for chunk in response.iter_content(chunk_size=8192):
@@ -153,6 +159,7 @@ class GeminiImageProcessor:
         result = {
             "text": content,
             "images": [],
+            "image_urls": [],  # 新增：存储图片URL
             "text_file": None
         }
         
@@ -195,7 +202,7 @@ class GeminiImageProcessor:
             text_content = content
             image_index = 1
             
-            # 处理base64图片
+            # 处理base64图片（仍然保存base64图片）
             for match in base64_matches:
                 full_match = match.group(0)
                 base64_data = match.group(1)
@@ -206,17 +213,18 @@ class GeminiImageProcessor:
                     result["images"].append(saved_path)
                     image_index += 1
             
-            # 处理URL图片（去重）
+            # 处理URL图片 - 恢复下载功能
             processed_urls = set()
             for url in url_matches:
                 if url not in processed_urls:
                     processed_urls.add(url)
                     print(f"处理图片URL: {url}")
                     
-                    # 下载URL图片
+                    # 下载URL图片到指定目录
                     saved_path = self.download_image_from_url(url, timestamp, image_index)
                     if saved_path:
                         result["images"].append(saved_path)
+                        result["image_urls"].append(url)  # 同时保存URL信息
                         print(f"图片已保存: {saved_path}")
                         image_index += 1
             
